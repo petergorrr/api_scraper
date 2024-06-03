@@ -1,4 +1,3 @@
-
 import requests
 import pathlib
 import os
@@ -9,33 +8,34 @@ import sys
 region = sys.argv[1]
 APIKey = sys.argv[2]
 
-# URL region might have a different name
-if region == "kr" or region == "jp":
+# Determine URL region
+if region in ["kr", "jp"]:
     url_region = "asia"
-elif region == "br" or region == "tr" or region == "lan" or region == "las" or region == "na" or region == "oce":
+elif region in ["br", "tr", "lan", "las", "na", "oce"]:
     url_region = "americas"
-elif region == "eune" or region == "euw" or region == "ru":
+elif region in ["eune", "euw", "ru"]:
     url_region = "europe"
 
-if os.path.isdir(f"LoL_summoners_match_timeline_{region}") is False:
-    os.mkdir(f"LoL_summoners_match_timeline_{region}")
-
+# Create directory for match timeline if it does not exist
+match_timeline_dir = f"LoL_summoners_match_timeline_{region}"
+if not os.path.isdir(match_timeline_dir):
+    os.mkdir(match_timeline_dir)
 else:
     print(f"The match timeline folder of region {region} already exists.")
 
-
+# Process each match ID file
 for path in pathlib.Path(f"LoL_summoners_puuid_{region}").iterdir():
-    current_file = open(path, "r", encoding="utf-8")
-    data = json.loads(current_file.read())
+    with open(path, "r", encoding="utf-8") as current_file:
+        data = json.load(current_file)
 
-    path_base = os.path.basename(path)
-    puuid = os.path.splitext(path_base)[0]
+    puuid = os.path.splitext(os.path.basename(path))[0]
 
+    # Process each match ID
     counter = 1
     for match_id in data:
-        if os.path.isdir(f"LoL_summoners_match_timeline_{region}/matches_{puuid}") is False:
-            os.mkdir(f"LoL_summoners_match_timeline_{region}/matches_{puuid}")
-
+        match_folder = f"LoL_summoners_match_timeline_{region}/matches_{puuid}"
+        if not os.path.isdir(match_folder):
+            os.mkdir(match_folder)
         else:
             print("The match folder for this puuid has already existed.")
 
@@ -45,22 +45,17 @@ for path in pathlib.Path(f"LoL_summoners_puuid_{region}").iterdir():
         URL = f"https://{url_region}.api.riotgames.com/lol/match/v5/matches/{match_id}/timeline?api_key={APIKey}"
 
         try:
-            # request URL
+            # Request URL
             response = requests.get(URL)
+            responseJSON = response.json()
+
+            with open(f"{match_folder}/{match_id}_timeline.json", "w", encoding='utf-8') as f:
+                json.dump(responseJSON, f, indent=4)
+
+            print(f"i:{counter}")
+            counter += 1
+            print("--- %s seconds ---" % (time.time() - start_time))
+            time.sleep(0.8)
 
         except Exception as e:
             print(e)
-
-        # get JSON of the data in the URL
-        responseJSON = response.json()
-
-        with open(f"LoL_summoners_match_timeline_{region}/matches_{puuid}/{match_id}_timeline.json", "w", encoding='utf-8')as f:
-            json.dump(responseJSON, f, indent=4)
-
-        print(f"i:{counter}")
-
-        counter += 1
-
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        time.sleep(0.8)
