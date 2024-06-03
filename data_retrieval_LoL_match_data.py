@@ -1,4 +1,3 @@
-
 import requests
 import pathlib
 import os
@@ -9,59 +8,55 @@ import sys
 region = sys.argv[1]
 APIKey = sys.argv[2]
 
-# URL region might have a different name
-if region == "kr" or region == "jp":
+# Determine URL region
+if region in ["kr", "jp"]:
     url_region = "asia"
-elif region == "br" or region == "tr" or region == "lan" or region == "las" or region == "na" or region == "oce":
+elif region in ["br", "tr", "lan", "las", "na", "oce"]:
     url_region = "americas"
-elif region == "eune" or region == "euw" or region == "ru":
+elif region in ["eune", "euw", "ru"]:
     url_region = "europe"
 
-if os.path.isdir(f"LoL_summoners_match_data_{region}") is False:
-    os.mkdir(f"LoL_summoners_match_data_{region}")
-
+# Create directory for match data if it does not exist
+match_data_dir = f"LoL_summoners_match_data_{region}"
+if not os.path.isdir(match_data_dir):
+    os.mkdir(match_data_dir)
 else:
-    print(f"The match id folder of region {region} already exists.")
+    print(f"The match data folder for region {region} already exists.")
 
-
-# Open JSON file by its directory path
+# Process each match ID file
 for path in pathlib.Path(f"LoL_summoners_match_id_{region}").iterdir():
-    current_file = open(path, "r", encoding="utf-8")
-    data = json.loads(current_file.read())
+    with open(path, "r", encoding="utf-8") as current_file:
+        data = json.load(current_file)
 
-    path_base = os.path.basename(path)
-    puuid = os.path.splitext(path_base)[0]
+    puuid = os.path.splitext(os.path.basename(path))[0]
 
+    # Create directory for match if it does not exist
+    match_dir = f"LoL_summoners_match_{region}/matches_{puuid}"
+    if not os.path.isdir(match_dir):
+        os.mkdir(match_dir)
+    else:
+        print("The match data folder already exists.")
+
+    # Process each match ID
     counter = 1
     for match_id in data:
-        if os.path.isdir(f"LoL_summoners_match_{region}/matches_{puuid}") is False:
-            os.mkdir(f"LoL_summoners_match_{region}/matches_{puuid}")
-
-        else:
-            print("The match data folder already exists.")
-
         start_time = time.time()
 
         # URL Creation
         URL = f"https://{url_region}.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={APIKey}"
 
         try:
-            # request URL
+            # Request URL
             response = requests.get(URL)
+            responseJSON = response.json()
+
+            with open(f"{match_dir}/{match_id}_match.json", "w", encoding='utf-8') as f:
+                json.dump(responseJSON, f, indent=4)
+
+            print(f"Number of matches generated for this puuid: {counter}")
+            counter += 1
+            print("--- %s seconds ---" % (time.time() - start_time))
+            time.sleep(0.8)
 
         except Exception as e:
             print(e)
-
-        # get JSON of the data in the URL
-        responseJSON = response.json()
-
-        with open(f"LoL_summoners_match_{region}/matches_{puuid}/{match_id}_match.json", "w", encoding='utf-8')as f:
-            json.dump(responseJSON, f, indent=4)
-
-        print(f"Number of matches generated for this puuid:{counter}")
-
-        counter += 1
-
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        time.sleep(0.8)
